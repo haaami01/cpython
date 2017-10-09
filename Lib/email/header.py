@@ -191,6 +191,12 @@ class Header:
             # The first line should be shorter to take into account the field
             # header.  Also subtract off 2 extra for the colon and space.
             self._firstlinelen = maxlinelen - len(header_name) - 2
+            # bpo-31314: len(header_name) can be greater than maxlinelen.
+            # We need to calculate self._firstlinelen not to be negative.
+            # so the first line is the same length as subsequent lines.
+            if self._firstlinelen < 0:
+                self._firstlinelen = maxlinelen
+
         # Second and subsequent lines should subtract off the length in
         # columns of the continuation whitespace prefix.
         self._maxlinelen = maxlinelen - cws_expanded_len
