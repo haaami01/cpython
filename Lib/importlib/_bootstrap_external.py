@@ -499,7 +499,9 @@ def _compile_bytecode(data, name=None, bytecode_path=None, source_path=None):
 def _code_to_bytecode(code, mtime=0, source_size=0):
     """Compile a code object into bytecode for writing out to a byte-compiled
     file."""
+    # TODO: Support hash-based pyc PEP-0552
     data = bytearray(MAGIC_NUMBER)
+    data.extend(_w_long(0))
     data.extend(_w_long(mtime))
     data.extend(_w_long(source_size))
     data.extend(marshal.dumps(code))
