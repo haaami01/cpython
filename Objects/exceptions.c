@@ -2967,8 +2967,25 @@ _report_missing_parentheses(PySyntaxErrorObject *self)
         return -1;
     }
     if (left_paren_index != -1) {
-        /* Use default error message for any line with an opening paren */
-        return 0;
+	int found_white_space = 0;
+	int found_other_char = 0;
+	Py_ssize_t pos = 0;
+	while(pos != left_paren_index) {
+	    int kind = PyUnicode_KIND(self->text);
+	    void *data = PyUnicode_DATA(self->text);
+            Py_UCS4 ch = PyUnicode_READ(kind, data, pos);
+	    if (Py_UNICODE_ISSPACE(ch)) {
+                found_white_space = 1;
+	    }
+	    if (!Py_UNICODE_ISSPACE(ch) && found_white_space == 1) {
+                found_other_char = 1;
+	    }
+	    pos++;
+	}
+
+	if (found_other_char == 0) {
+	    return 0;
+	}
     }
     /* Handle the simple statement case */
     legacy_check_result = _check_for_legacy_statements(self, 0);
