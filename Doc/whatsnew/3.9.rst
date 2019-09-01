@@ -124,6 +124,14 @@ a shutdown for the default executor that waits on the threadpool to finish
 closing. Also, :func:`asyncio.run` has been updated to use the new coroutine.
 (Contributed by Kyle Stanley in :issue:`34037`.)
 
+datetime
+--------
+The :meth:`~datetime.date.isocalendar()` of :class:`datetime.date`
+and :meth:`~datetime.datetime.isocalendar()` of :class:`datetime.datetime`
+methods now returns a :func:`~collections.namedtuple` instead of a :class:`tuple`.
+It can't be unpickled in previous versions.
+(Contributed by Dong-hee Na in :issue:`24416`.)
+
 threading
 ---------
 
