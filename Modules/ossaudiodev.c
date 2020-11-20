@@ -85,7 +85,7 @@ get_oss_audio_state(PyObject *module)
  */
 
 static oss_audio_t *
-newossobject(PyObject *arg)
+newossobject(oss_audio_state *state, PyObject *arg)
 {
     oss_audio_t *self;
     int fd, afmts, imode;
@@ -111,7 +111,7 @@ newossobject(PyObject *arg)
     else if (strcmp(mode, "rw") == 0)
         imode = O_RDWR;
     else {
-        PyErr_SetString(OSSAudioError, "mode must be 'r', 'w', or 'rw'");
+        PyErr_SetString(state->oss_audio_error, "mode must be 'r', 'w', or 'rw'");
         return NULL;
     }
 
@@ -145,7 +145,7 @@ newossobject(PyObject *arg)
         return NULL;
     }
     /* Create and initialize the object */
-    if ((self = PyObject_New(oss_audio_t, &OSSAudioType)) == NULL) {
+    if ((self = PyObject_New(oss_audio_t, (PyTypeObject *) state->oss_audio_type)) == NULL) {
         close(fd);
         return NULL;
     }
@@ -172,7 +172,7 @@ oss_dealloc(oss_audio_t *self)
  */
 
 static oss_mixer_t *
-newossmixerobject(PyObject *arg)
+newossmixerobject(oss_audio_state *state, PyObject *arg)
 {
     const char *devicename = NULL;
     int fd;
@@ -192,7 +192,7 @@ newossmixerobject(PyObject *arg)
     if (fd == -1)
         return NULL;
 
-    if ((self = PyObject_New(oss_mixer_t, &OSSMixerType)) == NULL) {
+    if ((self = PyObject_New(oss_mixer_t, (PyTypeObject*) state->oss_mixer_type)) == NULL) {
         close(fd);
         return NULL;
     }
@@ -571,6 +571,8 @@ oss_setparameters(oss_audio_t *self, PyObject *args)
 {
     int wanted_fmt, wanted_channels, wanted_rate, strict=0;
     int fmt, channels, rate;
+    PyTypeObject *oss_type = Py_TYPE(self);
+    oss_audio_state *state = PyType_GetModuleState(oss_type);
 
     if (!_is_fd_valid(self->fd))
         return NULL;
@@ -586,7 +588,7 @@ oss_setparameters(oss_audio_t *self, PyObject *args)
     }
     if (strict && fmt != wanted_fmt) {
         return PyErr_Format
-            (OSSAudioError,
+            (state->oss_audio_error,
              "unable to set requested format (wanted %d, got %d)",
              wanted_fmt, fmt);
     }
@@ -597,7 +599,7 @@ oss_setparameters(oss_audio_t *self, PyObject *args)
     }
     if (strict && channels != wanted_channels) {
         return PyErr_Format
-            (OSSAudioError,
+            (state->oss_audio_error,
              "unable to set requested channels (wanted %d, got %d)",
              wanted_channels, channels);
     }
@@ -608,7 +610,7 @@ oss_setparameters(oss_audio_t *self, PyObject *args)
     }
     if (strict && rate != wanted_rate) {
         return PyErr_Format
-            (OSSAudioError,
+            (state->oss_audio_error,
              "unable to set requested rate (wanted %d, got %d)",
              wanted_rate, rate);
     }
@@ -806,8 +808,11 @@ oss_mixer_get(oss_mixer_t *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "i:get", &channel))
         return NULL;
 
+    PyTypeObject *oss_type = Py_TYPE(self);
+    oss_audio_state *state = PyType_GetModuleState(oss_type);
+
     if (channel < 0 || channel > SOUND_MIXER_NRDEVICES) {
-        PyErr_SetString(OSSAudioError, "Invalid mixer channel specified.");
+        PyErr_SetString(state->oss_audio_error, "Invalid mixer channel specified.");
         return NULL;
     }
 
@@ -829,13 +834,16 @@ oss_mixer_set(oss_mixer_t *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "i(ii):set", &channel, &leftVol, &rightVol))
         return NULL;
 
+    PyTypeObject *oss_type = Py_TYPE(self);
+    oss_audio_state *state = PyType_GetModuleState(oss_type);
+
     if (channel < 0 || channel > SOUND_MIXER_NRDEVICES) {
-        PyErr_SetString(OSSAudioError, "Invalid mixer channel specified.");
+        PyErr_SetString(state->oss_audio_error, "Invalid mixer channel specified.");
         return NULL;
     }
 
     if (leftVol < 0 || rightVol < 0 || leftVol > 100 || rightVol > 100) {
-        PyErr_SetString(OSSAudioError, "Volumes must be between 0 and 100.");
+        PyErr_SetString(state->oss_audio_error, "Volumes must be between 0 and 100.");
         return NULL;
     }
 
@@ -966,7 +974,6 @@ static PyGetSetDef oss_getsetlist[] = {
 };
 
 static PyType_Slot oss_audio_type_slots[] = {
-    PyVarObject_HEAD_INIT(NULL, 0)
     {Py_tp_dealloc, oss_dealloc},
     {Py_tp_members, oss_members},
     {Py_tp_methods, oss_methods},
@@ -983,9 +990,7 @@ static PyType_Spec oss_audio_type_spec = {
 };
 
 static PyType_Slot oss_mixer_type_slots[] = {
-    PyVarObject_HEAD_INIT(NULL, 0)
     {Py_tp_dealloc, oss_mixer_dealloc},
-    {Py_tp_members, oss_members},
     {Py_tp_methods, oss_mixer_methods},
     {0, 0},
 };
@@ -995,19 +1000,21 @@ static PyType_Spec oss_mixer_type_spec = {
     .basicsize = sizeof(oss_mixer_t),
     .itemsize = 0,
     .flags = Py_TPFLAGS_DEFAULT,
-    .slots = oss_audio_type_slots,
+    .slots = oss_mixer_type_slots,
 };
 
 static PyObject *
-ossopen(PyObject *self, PyObject *args)
+ossopen(PyObject *module, PyObject *args)
 {
-    return (PyObject *)newossobject(args);
+    oss_audio_state *state = get_oss_audio_state(module);
+    return (PyObject *)newossobject(state, args);
 }
 
 static PyObject *
-ossopenmixer(PyObject *self, PyObject *args)
+ossopenmixer(PyObject *module, PyObject *args)
 {
-    return (PyObject *)newossmixerobject(args);
+    oss_audio_state *state = get_oss_audio_state(module);
+    return (PyObject *)newossmixerobject(state, args);
 }
 
 static PyMethodDef ossaudiodev_methods[] = {
@@ -1076,7 +1083,7 @@ oss_audio_exec(PyObject *module)
         return -1;
     }
 
-    state->oss_mixer_type = PyType_FromModuleAndSpec(module, &oss_mixeer_type_spec, NULL);
+    state->oss_mixer_type = PyType_FromModuleAndSpec(module, &oss_mixer_type_spec, NULL);
     if (state->oss_mixer_type == NULL) {
         return -1;
     }
@@ -1217,11 +1224,11 @@ oss_audio_exec(PyObject *module)
 #ifdef SNDCTL_DSP_PROFILE
     _EXPORT_INT(module, SNDCTL_DSP_PROFILE);
 #endif
-    _EXPORT_INT(m, SNDCTL_DSP_RESET);
-    _EXPORT_INT(m, SNDCTL_DSP_SAMPLESIZE);
-    _EXPORT_INT(m, SNDCTL_DSP_SETDUPLEX);
-    _EXPORT_INT(m, SNDCTL_DSP_SETFMT);
-    _EXPORT_INT(m, SNDCTL_DSP_SETFRAGMENT);
+    _EXPORT_INT(module, SNDCTL_DSP_RESET);
+    _EXPORT_INT(module, SNDCTL_DSP_SAMPLESIZE);
+    _EXPORT_INT(module, SNDCTL_DSP_SETDUPLEX);
+    _EXPORT_INT(module, SNDCTL_DSP_SETFMT);
+    _EXPORT_INT(module, SNDCTL_DSP_SETFRAGMENT);
 #ifdef SNDCTL_DSP_SETSPDIF
     _EXPORT_INT(module, SNDCTL_DSP_SETSPDIF);
 #endif
