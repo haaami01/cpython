@@ -64,11 +64,20 @@ typedef struct {
     int      fd;                      /* The open mixer device */
 } oss_mixer_t;
 
+typedef struct {
+    PyObject *oss_audio_type;
+    PyObject *oss_mixer_type;
+    PyObject *oss_audio_error;
+} oss_audio_state;
 
-static PyTypeObject OSSAudioType;
-static PyTypeObject OSSMixerType;
+static inline oss_audio_state*
+get_oss_audio_state(PyObject *module)
+{
+    void *state = PyModule_GetState(module);
+    assert(state != NULL);
+    return (oss_audio_state *)state;
+}
 
-static PyObject *OSSAudioError;
 
 
 /* ----------------------------------------------------------------------
@@ -956,72 +965,38 @@ static PyGetSetDef oss_getsetlist[] = {
     {NULL},
 };
 
-static PyTypeObject OSSAudioType = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    "ossaudiodev.oss_audio_device", /*tp_name*/
-    sizeof(oss_audio_t),        /*tp_basicsize*/
-    0,                          /*tp_itemsize*/
-    /* methods */
-    (destructor)oss_dealloc,    /*tp_dealloc*/
-    0,                          /*tp_vectorcall_offset*/
-    0,                          /*tp_getattr*/
-    0,                          /*tp_setattr*/
-    0,                          /*tp_as_async*/
-    0,                          /*tp_repr*/
-    0,                          /*tp_as_number*/
-    0,                          /*tp_as_sequence*/
-    0,                          /*tp_as_mapping*/
-    0,                          /*tp_hash*/
-    0,                          /*tp_call*/
-    0,                          /*tp_str*/
-    0,                          /*tp_getattro*/
-    0,                          /*tp_setattro*/
-    0,                          /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT,         /*tp_flags*/
-    0,                          /*tp_doc*/
-    0,                          /*tp_traverse*/
-    0,                          /*tp_clear*/
-    0,                          /*tp_richcompare*/
-    0,                          /*tp_weaklistoffset*/
-    0,                          /*tp_iter*/
-    0,                          /*tp_iternext*/
-    oss_methods,                /*tp_methods*/
-    oss_members,                /*tp_members*/
-    oss_getsetlist,             /*tp_getset*/
+static PyType_Slot oss_audio_type_slots[] = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    {Py_tp_dealloc, oss_dealloc},
+    {Py_tp_members, oss_members},
+    {Py_tp_methods, oss_methods},
+    {Py_tp_getset, oss_getsetlist},
+    {0, 0},
 };
 
-static PyTypeObject OSSMixerType = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    "ossaudiodev.oss_mixer_device", /*tp_name*/
-    sizeof(oss_mixer_t),            /*tp_basicsize*/
-    0,                              /*tp_itemsize*/
-    /* methods */
-    (destructor)oss_mixer_dealloc,  /*tp_dealloc*/
-    0,                              /*tp_vectorcall_offset*/
-    0,                              /*tp_getattr*/
-    0,                              /*tp_setattr*/
-    0,                              /*tp_as_async*/
-    0,                              /*tp_repr*/
-    0,                              /*tp_as_number*/
-    0,                              /*tp_as_sequence*/
-    0,                              /*tp_as_mapping*/
-    0,                              /*tp_hash*/
-    0,                              /*tp_call*/
-    0,                              /*tp_str*/
-    0,                              /*tp_getattro*/
-    0,                              /*tp_setattro*/
-    0,                              /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT,             /*tp_flags*/
-    0,                              /*tp_doc*/
-    0,                              /*tp_traverse*/
-    0,                              /*tp_clear*/
-    0,                              /*tp_richcompare*/
-    0,                              /*tp_weaklistoffset*/
-    0,                              /*tp_iter*/
-    0,                              /*tp_iternext*/
-    oss_mixer_methods,              /*tp_methods*/
+static PyType_Spec oss_audio_type_spec = {
+    .name = "ossaudiodev.oss_audio_device",
+    .basicsize = sizeof(oss_audio_t),
+    .itemsize = 0,
+    .flags = Py_TPFLAGS_DEFAULT,
+    .slots = oss_audio_type_slots,
 };
 
+static PyType_Slot oss_mixer_type_slots[] = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    {Py_tp_dealloc, oss_mixer_dealloc},
+    {Py_tp_members, oss_members},
+    {Py_tp_methods, oss_mixer_methods},
+    {0, 0},
+};
+
+static PyType_Spec oss_mixer_type_spec = {
+    .name = "ossaudiodev.oss_mixer_device",
+    .basicsize = sizeof(oss_mixer_t),
+    .itemsize = 0,
+    .flags = Py_TPFLAGS_DEFAULT,
+    .slots = oss_audio_type_slots,
+};
 
 static PyObject *
 ossopen(PyObject *self, PyObject *args)
@@ -1043,7 +1018,7 @@ static PyMethodDef ossaudiodev_methods[] = {
 
 
 #define _EXPORT_INT(mod, name) \
-  if (PyModule_AddIntConstant(mod, #name, (long) (name)) == -1) return NULL;
+  if (PyModule_AddIntConstant(mod, #name, (long) (name)) == -1) return -1;
 
 
 static char *control_labels[] = SOUND_DEVICE_LABELS;
@@ -1092,163 +1067,155 @@ error1:
     return -1;
 }
 
-
-static struct PyModuleDef ossaudiodevmodule = {
-        PyModuleDef_HEAD_INIT,
-        "ossaudiodev",
-        NULL,
-        -1,
-        ossaudiodev_methods,
-        NULL,
-        NULL,
-        NULL,
-        NULL
-};
-
-PyMODINIT_FUNC
-PyInit_ossaudiodev(void)
+static int
+oss_audio_exec(PyObject *module)
 {
-    PyObject *m;
-
-    if (PyType_Ready(&OSSAudioType) < 0)
-        return NULL;
-
-    if (PyType_Ready(&OSSMixerType) < 0)
-        return NULL;
-
-    m = PyModule_Create(&ossaudiodevmodule);
-    if (m == NULL)
-        return NULL;
-
-    OSSAudioError = PyErr_NewException("ossaudiodev.OSSAudioError",
-                                       NULL, NULL);
-    if (OSSAudioError) {
-        /* Each call to PyModule_AddObject decrefs it; compensate: */
-        Py_INCREF(OSSAudioError);
-        Py_INCREF(OSSAudioError);
-        PyModule_AddObject(m, "error", OSSAudioError);
-        PyModule_AddObject(m, "OSSAudioError", OSSAudioError);
+    oss_audio_state *state = get_oss_audio_state(module);
+    state->oss_audio_type = PyType_FromModuleAndSpec(module, &oss_audio_type_spec, NULL);
+    if (state->oss_audio_type == NULL) {
+        return -1;
     }
 
-    /* Build 'control_labels' and 'control_names' lists and add them
-       to the module. */
-    if (build_namelists(m) == -1)       /* XXX what to do here? */
-        return NULL;
+    state->oss_mixer_type = PyType_FromModuleAndSpec(module, &oss_mixeer_type_spec, NULL);
+    if (state->oss_mixer_type == NULL) {
+        return -1;
+    }
+
+    state->oss_audio_error = PyErr_NewException("ossaudiodev.OSSAudioError", NULL, NULL);
+    if (state->oss_audio_error == NULL) {
+        return -1;
+    }
+
+    Py_INCREF(state->oss_audio_error);
+    if (PyModule_AddObject(module, "error", state->oss_audio_error) < 0) {
+        Py_DECREF(state->oss_audio_error);
+        return -1;
+    }
+
+    Py_INCREF(state->oss_audio_error);
+    if (PyModule_AddObject(module, "OSSAudioError", state->oss_audio_error) < 0) {
+        Py_DECREF(state->oss_audio_error);
+        return -1;
+    }
+
+    if (build_namelists(module) < 0) {
+        return -1;
+    }
 
     /* Expose the audio format numbers -- essential! */
-    _EXPORT_INT(m, AFMT_QUERY);
-    _EXPORT_INT(m, AFMT_MU_LAW);
-    _EXPORT_INT(m, AFMT_A_LAW);
-    _EXPORT_INT(m, AFMT_IMA_ADPCM);
-    _EXPORT_INT(m, AFMT_U8);
-    _EXPORT_INT(m, AFMT_S16_LE);
-    _EXPORT_INT(m, AFMT_S16_BE);
-    _EXPORT_INT(m, AFMT_S8);
-    _EXPORT_INT(m, AFMT_U16_LE);
-    _EXPORT_INT(m, AFMT_U16_BE);
-    _EXPORT_INT(m, AFMT_MPEG);
+    _EXPORT_INT(module, AFMT_QUERY);
+    _EXPORT_INT(module, AFMT_MU_LAW);
+    _EXPORT_INT(module, AFMT_A_LAW);
+    _EXPORT_INT(module, AFMT_IMA_ADPCM);
+    _EXPORT_INT(module, AFMT_U8);
+    _EXPORT_INT(module, AFMT_S16_LE);
+    _EXPORT_INT(module, AFMT_S16_BE);
+    _EXPORT_INT(module, AFMT_S8);
+    _EXPORT_INT(module, AFMT_U16_LE);
+    _EXPORT_INT(module, AFMT_U16_BE);
+    _EXPORT_INT(module, AFMT_MPEG);
 #ifdef AFMT_AC3
-    _EXPORT_INT(m, AFMT_AC3);
+    _EXPORT_INT(module, AFMT_AC3);
 #endif
 #ifdef AFMT_S16_NE
-    _EXPORT_INT(m, AFMT_S16_NE);
+    _EXPORT_INT(module, AFMT_S16_NE);
 #endif
 #ifdef AFMT_U16_NE
-    _EXPORT_INT(m, AFMT_U16_NE);
+    _EXPORT_INT(module, AFMT_U16_NE);
 #endif
 #ifdef AFMT_S32_LE
-    _EXPORT_INT(m, AFMT_S32_LE);
+    _EXPORT_INT(module, AFMT_S32_LE);
 #endif
 #ifdef AFMT_S32_BE
-    _EXPORT_INT(m, AFMT_S32_BE);
+    _EXPORT_INT(module, AFMT_S32_BE);
 #endif
 #ifdef AFMT_MPEG
-    _EXPORT_INT(m, AFMT_MPEG);
+    _EXPORT_INT(module, AFMT_MPEG);
 #endif
 
     /* Expose the sound mixer device numbers. */
-    _EXPORT_INT(m, SOUND_MIXER_NRDEVICES);
-    _EXPORT_INT(m, SOUND_MIXER_VOLUME);
-    _EXPORT_INT(m, SOUND_MIXER_BASS);
-    _EXPORT_INT(m, SOUND_MIXER_TREBLE);
-    _EXPORT_INT(m, SOUND_MIXER_SYNTH);
-    _EXPORT_INT(m, SOUND_MIXER_PCM);
-    _EXPORT_INT(m, SOUND_MIXER_SPEAKER);
-    _EXPORT_INT(m, SOUND_MIXER_LINE);
-    _EXPORT_INT(m, SOUND_MIXER_MIC);
-    _EXPORT_INT(m, SOUND_MIXER_CD);
-    _EXPORT_INT(m, SOUND_MIXER_IMIX);
-    _EXPORT_INT(m, SOUND_MIXER_ALTPCM);
-    _EXPORT_INT(m, SOUND_MIXER_RECLEV);
-    _EXPORT_INT(m, SOUND_MIXER_IGAIN);
-    _EXPORT_INT(m, SOUND_MIXER_OGAIN);
-    _EXPORT_INT(m, SOUND_MIXER_LINE1);
-    _EXPORT_INT(m, SOUND_MIXER_LINE2);
-    _EXPORT_INT(m, SOUND_MIXER_LINE3);
+    _EXPORT_INT(module, SOUND_MIXER_NRDEVICES);
+    _EXPORT_INT(module, SOUND_MIXER_VOLUME);
+    _EXPORT_INT(module, SOUND_MIXER_BASS);
+    _EXPORT_INT(module, SOUND_MIXER_TREBLE);
+    _EXPORT_INT(module, SOUND_MIXER_SYNTH);
+    _EXPORT_INT(module, SOUND_MIXER_PCM);
+    _EXPORT_INT(module, SOUND_MIXER_SPEAKER);
+    _EXPORT_INT(module, SOUND_MIXER_LINE);
+    _EXPORT_INT(module, SOUND_MIXER_MIC);
+    _EXPORT_INT(module, SOUND_MIXER_CD);
+    _EXPORT_INT(module, SOUND_MIXER_IMIX);
+    _EXPORT_INT(module, SOUND_MIXER_ALTPCM);
+    _EXPORT_INT(module, SOUND_MIXER_RECLEV);
+    _EXPORT_INT(module, SOUND_MIXER_IGAIN);
+    _EXPORT_INT(module, SOUND_MIXER_OGAIN);
+    _EXPORT_INT(module, SOUND_MIXER_LINE1);
+    _EXPORT_INT(module, SOUND_MIXER_LINE2);
+    _EXPORT_INT(module, SOUND_MIXER_LINE3);
 #ifdef SOUND_MIXER_DIGITAL1
-    _EXPORT_INT(m, SOUND_MIXER_DIGITAL1);
+    _EXPORT_INT(module, SOUND_MIXER_DIGITAL1);
 #endif
 #ifdef SOUND_MIXER_DIGITAL2
-    _EXPORT_INT(m, SOUND_MIXER_DIGITAL2);
+    _EXPORT_INT(module, SOUND_MIXER_DIGITAL2);
 #endif
 #ifdef SOUND_MIXER_DIGITAL3
-    _EXPORT_INT(m, SOUND_MIXER_DIGITAL3);
+    _EXPORT_INT(module, SOUND_MIXER_DIGITAL3);
 #endif
 #ifdef SOUND_MIXER_PHONEIN
-    _EXPORT_INT(m, SOUND_MIXER_PHONEIN);
+    _EXPORT_INT(module, SOUND_MIXER_PHONEIN);
 #endif
 #ifdef SOUND_MIXER_PHONEOUT
-    _EXPORT_INT(m, SOUND_MIXER_PHONEOUT);
+    _EXPORT_INT(module, SOUND_MIXER_PHONEOUT);
 #endif
 #ifdef SOUND_MIXER_VIDEO
-    _EXPORT_INT(m, SOUND_MIXER_VIDEO);
+    _EXPORT_INT(module, SOUND_MIXER_VIDEO);
 #endif
 #ifdef SOUND_MIXER_RADIO
-    _EXPORT_INT(m, SOUND_MIXER_RADIO);
+    _EXPORT_INT(module, SOUND_MIXER_RADIO);
 #endif
 #ifdef SOUND_MIXER_MONITOR
-    _EXPORT_INT(m, SOUND_MIXER_MONITOR);
+    _EXPORT_INT(module, SOUND_MIXER_MONITOR);
 #endif
 
     /* Expose all the ioctl numbers for masochists who like to do this
        stuff directly. */
-    _EXPORT_INT(m, SNDCTL_COPR_HALT);
-    _EXPORT_INT(m, SNDCTL_COPR_LOAD);
-    _EXPORT_INT(m, SNDCTL_COPR_RCODE);
-    _EXPORT_INT(m, SNDCTL_COPR_RCVMSG);
-    _EXPORT_INT(m, SNDCTL_COPR_RDATA);
-    _EXPORT_INT(m, SNDCTL_COPR_RESET);
-    _EXPORT_INT(m, SNDCTL_COPR_RUN);
-    _EXPORT_INT(m, SNDCTL_COPR_SENDMSG);
-    _EXPORT_INT(m, SNDCTL_COPR_WCODE);
-    _EXPORT_INT(m, SNDCTL_COPR_WDATA);
+    _EXPORT_INT(module, SNDCTL_COPR_HALT);
+    _EXPORT_INT(module, SNDCTL_COPR_LOAD);
+    _EXPORT_INT(module, SNDCTL_COPR_RCODE);
+    _EXPORT_INT(module, SNDCTL_COPR_RCVMSG);
+    _EXPORT_INT(module, SNDCTL_COPR_RDATA);
+    _EXPORT_INT(module, SNDCTL_COPR_RESET);
+    _EXPORT_INT(module, SNDCTL_COPR_RUN);
+    _EXPORT_INT(module, SNDCTL_COPR_SENDMSG);
+    _EXPORT_INT(module, SNDCTL_COPR_WCODE);
+    _EXPORT_INT(module, SNDCTL_COPR_WDATA);
 #ifdef SNDCTL_DSP_BIND_CHANNEL
-    _EXPORT_INT(m, SNDCTL_DSP_BIND_CHANNEL);
+    _EXPORT_INT(module, SNDCTL_DSP_BIND_CHANNEL);
 #endif
-    _EXPORT_INT(m, SNDCTL_DSP_CHANNELS);
-    _EXPORT_INT(m, SNDCTL_DSP_GETBLKSIZE);
-    _EXPORT_INT(m, SNDCTL_DSP_GETCAPS);
+    _EXPORT_INT(module, SNDCTL_DSP_CHANNELS);
+    _EXPORT_INT(module, SNDCTL_DSP_GETBLKSIZE);
+    _EXPORT_INT(module, SNDCTL_DSP_GETCAPS);
 #ifdef SNDCTL_DSP_GETCHANNELMASK
-    _EXPORT_INT(m, SNDCTL_DSP_GETCHANNELMASK);
+    _EXPORT_INT(module, SNDCTL_DSP_GETCHANNELMASK);
 #endif
-    _EXPORT_INT(m, SNDCTL_DSP_GETFMTS);
-    _EXPORT_INT(m, SNDCTL_DSP_GETIPTR);
-    _EXPORT_INT(m, SNDCTL_DSP_GETISPACE);
+    _EXPORT_INT(module, SNDCTL_DSP_GETFMTS);
+    _EXPORT_INT(module, SNDCTL_DSP_GETIPTR);
+    _EXPORT_INT(module, SNDCTL_DSP_GETISPACE);
 #ifdef SNDCTL_DSP_GETODELAY
-    _EXPORT_INT(m, SNDCTL_DSP_GETODELAY);
+    _EXPORT_INT(module, SNDCTL_DSP_GETODELAY);
 #endif
-    _EXPORT_INT(m, SNDCTL_DSP_GETOPTR);
-    _EXPORT_INT(m, SNDCTL_DSP_GETOSPACE);
+    _EXPORT_INT(module, SNDCTL_DSP_GETOPTR);
+    _EXPORT_INT(module, SNDCTL_DSP_GETOSPACE);
 #ifdef SNDCTL_DSP_GETSPDIF
-    _EXPORT_INT(m, SNDCTL_DSP_GETSPDIF);
+    _EXPORT_INT(module, SNDCTL_DSP_GETSPDIF);
 #endif
-    _EXPORT_INT(m, SNDCTL_DSP_GETTRIGGER);
-    _EXPORT_INT(m, SNDCTL_DSP_MAPINBUF);
-    _EXPORT_INT(m, SNDCTL_DSP_MAPOUTBUF);
-    _EXPORT_INT(m, SNDCTL_DSP_NONBLOCK);
-    _EXPORT_INT(m, SNDCTL_DSP_POST);
+    _EXPORT_INT(module, SNDCTL_DSP_GETTRIGGER);
+    _EXPORT_INT(module, SNDCTL_DSP_MAPINBUF);
+    _EXPORT_INT(module, SNDCTL_DSP_MAPOUTBUF);
+    _EXPORT_INT(module, SNDCTL_DSP_NONBLOCK);
+    _EXPORT_INT(module, SNDCTL_DSP_POST);
 #ifdef SNDCTL_DSP_PROFILE
-    _EXPORT_INT(m, SNDCTL_DSP_PROFILE);
+    _EXPORT_INT(module, SNDCTL_DSP_PROFILE);
 #endif
     _EXPORT_INT(m, SNDCTL_DSP_RESET);
     _EXPORT_INT(m, SNDCTL_DSP_SAMPLESIZE);
@@ -1256,54 +1223,102 @@ PyInit_ossaudiodev(void)
     _EXPORT_INT(m, SNDCTL_DSP_SETFMT);
     _EXPORT_INT(m, SNDCTL_DSP_SETFRAGMENT);
 #ifdef SNDCTL_DSP_SETSPDIF
-    _EXPORT_INT(m, SNDCTL_DSP_SETSPDIF);
+    _EXPORT_INT(module, SNDCTL_DSP_SETSPDIF);
 #endif
-    _EXPORT_INT(m, SNDCTL_DSP_SETSYNCRO);
-    _EXPORT_INT(m, SNDCTL_DSP_SETTRIGGER);
-    _EXPORT_INT(m, SNDCTL_DSP_SPEED);
-    _EXPORT_INT(m, SNDCTL_DSP_STEREO);
-    _EXPORT_INT(m, SNDCTL_DSP_SUBDIVIDE);
-    _EXPORT_INT(m, SNDCTL_DSP_SYNC);
-    _EXPORT_INT(m, SNDCTL_FM_4OP_ENABLE);
-    _EXPORT_INT(m, SNDCTL_FM_LOAD_INSTR);
-    _EXPORT_INT(m, SNDCTL_MIDI_INFO);
-    _EXPORT_INT(m, SNDCTL_MIDI_MPUCMD);
-    _EXPORT_INT(m, SNDCTL_MIDI_MPUMODE);
-    _EXPORT_INT(m, SNDCTL_MIDI_PRETIME);
-    _EXPORT_INT(m, SNDCTL_SEQ_CTRLRATE);
-    _EXPORT_INT(m, SNDCTL_SEQ_GETINCOUNT);
-    _EXPORT_INT(m, SNDCTL_SEQ_GETOUTCOUNT);
+    _EXPORT_INT(module, SNDCTL_DSP_SETSYNCRO);
+    _EXPORT_INT(module, SNDCTL_DSP_SETTRIGGER);
+    _EXPORT_INT(module, SNDCTL_DSP_SPEED);
+    _EXPORT_INT(module, SNDCTL_DSP_STEREO);
+    _EXPORT_INT(module, SNDCTL_DSP_SUBDIVIDE);
+    _EXPORT_INT(module, SNDCTL_DSP_SYNC);
+    _EXPORT_INT(module, SNDCTL_FM_4OP_ENABLE);
+    _EXPORT_INT(module, SNDCTL_FM_LOAD_INSTR);
+    _EXPORT_INT(module, SNDCTL_MIDI_INFO);
+    _EXPORT_INT(module, SNDCTL_MIDI_MPUCMD);
+    _EXPORT_INT(module, SNDCTL_MIDI_MPUMODE);
+    _EXPORT_INT(module, SNDCTL_MIDI_PRETIME);
+    _EXPORT_INT(module, SNDCTL_SEQ_CTRLRATE);
+    _EXPORT_INT(module, SNDCTL_SEQ_GETINCOUNT);
+    _EXPORT_INT(module, SNDCTL_SEQ_GETOUTCOUNT);
 #ifdef SNDCTL_SEQ_GETTIME
-    _EXPORT_INT(m, SNDCTL_SEQ_GETTIME);
+    _EXPORT_INT(module, SNDCTL_SEQ_GETTIME);
 #endif
-    _EXPORT_INT(m, SNDCTL_SEQ_NRMIDIS);
-    _EXPORT_INT(m, SNDCTL_SEQ_NRSYNTHS);
-    _EXPORT_INT(m, SNDCTL_SEQ_OUTOFBAND);
-    _EXPORT_INT(m, SNDCTL_SEQ_PANIC);
-    _EXPORT_INT(m, SNDCTL_SEQ_PERCMODE);
-    _EXPORT_INT(m, SNDCTL_SEQ_RESET);
-    _EXPORT_INT(m, SNDCTL_SEQ_RESETSAMPLES);
-    _EXPORT_INT(m, SNDCTL_SEQ_SYNC);
-    _EXPORT_INT(m, SNDCTL_SEQ_TESTMIDI);
-    _EXPORT_INT(m, SNDCTL_SEQ_THRESHOLD);
+    _EXPORT_INT(module, SNDCTL_SEQ_NRMIDIS);
+    _EXPORT_INT(module, SNDCTL_SEQ_NRSYNTHS);
+    _EXPORT_INT(module, SNDCTL_SEQ_OUTOFBAND);
+    _EXPORT_INT(module, SNDCTL_SEQ_PANIC);
+    _EXPORT_INT(module, SNDCTL_SEQ_PERCMODE);
+    _EXPORT_INT(module, SNDCTL_SEQ_RESET);
+    _EXPORT_INT(module, SNDCTL_SEQ_RESETSAMPLES);
+    _EXPORT_INT(module, SNDCTL_SEQ_SYNC);
+    _EXPORT_INT(module, SNDCTL_SEQ_TESTMIDI);
+    _EXPORT_INT(module, SNDCTL_SEQ_THRESHOLD);
 #ifdef SNDCTL_SYNTH_CONTROL
-    _EXPORT_INT(m, SNDCTL_SYNTH_CONTROL);
+    _EXPORT_INT(module, SNDCTL_SYNTH_CONTROL);
 #endif
 #ifdef SNDCTL_SYNTH_ID
-    _EXPORT_INT(m, SNDCTL_SYNTH_ID);
+    _EXPORT_INT(module, SNDCTL_SYNTH_ID);
 #endif
-    _EXPORT_INT(m, SNDCTL_SYNTH_INFO);
-    _EXPORT_INT(m, SNDCTL_SYNTH_MEMAVL);
+    _EXPORT_INT(module, SNDCTL_SYNTH_INFO);
+    _EXPORT_INT(module, SNDCTL_SYNTH_MEMAVL);
 #ifdef SNDCTL_SYNTH_REMOVESAMPLE
-    _EXPORT_INT(m, SNDCTL_SYNTH_REMOVESAMPLE);
+    _EXPORT_INT(module, SNDCTL_SYNTH_REMOVESAMPLE);
 #endif
-    _EXPORT_INT(m, SNDCTL_TMR_CONTINUE);
-    _EXPORT_INT(m, SNDCTL_TMR_METRONOME);
-    _EXPORT_INT(m, SNDCTL_TMR_SELECT);
-    _EXPORT_INT(m, SNDCTL_TMR_SOURCE);
-    _EXPORT_INT(m, SNDCTL_TMR_START);
-    _EXPORT_INT(m, SNDCTL_TMR_STOP);
-    _EXPORT_INT(m, SNDCTL_TMR_TEMPO);
-    _EXPORT_INT(m, SNDCTL_TMR_TIMEBASE);
-    return m;
+    _EXPORT_INT(module, SNDCTL_TMR_CONTINUE);
+    _EXPORT_INT(module, SNDCTL_TMR_METRONOME);
+    _EXPORT_INT(module, SNDCTL_TMR_SELECT);
+    _EXPORT_INT(module, SNDCTL_TMR_SOURCE);
+    _EXPORT_INT(module, SNDCTL_TMR_START);
+    _EXPORT_INT(module, SNDCTL_TMR_STOP);
+    _EXPORT_INT(module, SNDCTL_TMR_TEMPO);
+    _EXPORT_INT(module, SNDCTL_TMR_TIMEBASE);
+    return 0;
+}
+
+static struct PyModuleDef_Slot ossaudiodev_slots[] = {
+    {Py_mod_exec, oss_audio_exec},
+    {0, NULL}
+};
+
+static int
+ossaudiodev_traverse(PyObject *module, visitproc visit, void *arg)
+{
+    oss_audio_state *state = get_oss_audio_state(module);
+    Py_VISIT(state->oss_audio_error);
+    Py_VISIT(state->oss_audio_type);
+    Py_VISIT(state->oss_mixer_type);
+    return 0;
+}
+
+static int
+ossaudiodev_clear(PyObject *module)
+{
+    oss_audio_state *state = get_oss_audio_state(module);
+    Py_CLEAR(state->oss_audio_error);
+    Py_CLEAR(state->oss_audio_type);
+    Py_CLEAR(state->oss_mixer_type);
+    return 0;
+}
+
+static void
+ossaudiodev_free(void *module)
+{
+    ossaudiodev_clear((PyObject *)module);
+}
+
+static struct PyModuleDef ossaudiodev_module = {
+    PyModuleDef_HEAD_INIT,
+    .m_name = "ossaudiodev",
+    .m_size = sizeof(oss_audio_state),
+    .m_methods = ossaudiodev_methods,
+    .m_slots = ossaudiodev_slots,
+    .m_traverse = ossaudiodev_traverse,
+    .m_clear = ossaudiodev_clear,
+    .m_free = ossaudiodev_free,
+};
+
+PyMODINIT_FUNC
+PyInit_ossaudiodev(void)
+{
+    return PyModuleDef_Init(&ossaudiodev_module);
 }
