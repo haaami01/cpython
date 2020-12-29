@@ -730,7 +730,7 @@ static PyType_Slot MultibyteCodec_Type_slots[] = {
 };
 
 PyType_Spec MultibyteCodec_Type_spec = {
-    .name = "MultibyteCodec",
+    .name = "_multibytecodec.MultibyteCodec",
     .basicsize = sizeof(MultibyteCodecObject),
     .flags = Py_TPFLAGS_DEFAULT,
     .slots = MultibyteCodec_Type_slots,
@@ -1103,7 +1103,7 @@ static PyType_Slot MultibyteIncrementalEncoder_Type_slots[] = {
 };
 
 static PyType_Spec MultibyteIncrementalEncoder_Type_spec = {
-    .name = "MultibyteIncrementalEncoder",
+    .name = "_multibytecodec.MultibyteIncrementalEncoder",
     .basicsize = sizeof(MultibyteIncrementalEncoderObject),
     .itemsize = 0,
     .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
@@ -1392,7 +1392,7 @@ static PyType_Slot MultibyteIncrementalDecoder_slots[] = {
 };
 
 static PyType_Spec MultibyteIncrementalDecoder_Type_spec = {
-    .name = "MultibyteIncrementalDecoder",
+    .name = "_multibytecodec.MultibyteIncrementalDecoder",
     .basicsize = sizeof(MultibyteIncrementalDecoderObject),
     .itemsize = 0,
     .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
@@ -1725,7 +1725,7 @@ static PyType_Slot MultibyteStreamReader_Type_slots[] = {
 };
 
 static PyType_Spec MultibyteStreamReader_Type_spec = {
-    .name = "MultibyteStreamReader",
+    .name = "_multibytecodec.MultibyteStreamReader",
     .basicsize = sizeof(MultibyteStreamReaderObject),
     .itemsize = 0,
     .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
@@ -1956,7 +1956,7 @@ static PyType_Slot MultibyteStreamWriter_Type_slots[] = {
 };
 
 static PyType_Spec MultibyteStreamWriter_Type_spec = {
-    .name = "MultibyteStreamWriter",
+    .name = "_multibytecodec.MultibyteStreamWriter",
     .basicsize = sizeof(MultibyteStreamWriterObject),
     .itemsize = 0,
     .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
@@ -2045,7 +2045,6 @@ multibytecodec_exec(PyObject *module)
     if (PyModule_AddType(module, (PyTypeObject *)state->MultibyteStreamWriter_Type) < 0) {
         return -1;
     }
-    
     return 0;
 }
 
