@@ -10,11 +10,33 @@
 #include "multibytecodec.h"
 #include "clinic/multibytecodec.c.h"
 
+typedef struct {
+    PyObject *MultibyteIncrementalEncoder_Type;
+    PyObject *MultibyteIncrementalDecoder_Type;
+    PyObject *MultibyteStreamReader_Type;
+    PyObject *MultibyteStreamWriter_Type;
+    PyObject *MultibyteCodec_Type;
+} multibytecodec_state;
+
+
+static multibytecodec_state *
+multibytecodec_state_get_state(PyObject *module)
+{
+    multibytecodec_state *state = PyModule_GetState(module);
+    assert(state);
+    return state;
+}
+
+static struct PyModuleDef _multibytecodecmodule;
+#define multibytecodec_state_get_state_by_type(type) \
+    (multibytecodec_state_get_state(_PyType_GetModuleByDef(type, &_multibytecodecmodule)))
+
+
 /*[clinic input]
 module _multibytecodec
-class _multibytecodec.MultibyteCodec "MultibyteCodecObject *" "&MultibyteCodec_Type"
+class _multibytecodec.MultibyteCodec "MultibyteCodecObject *" "multibytecodec_state_get_state_by_type(type)->MultibyteCodec_Type"
 [clinic start generated code]*/
-/*[clinic end generated code: output=da39a3ee5e6b4b0d input=6ad689546cbb5450]*/
+/*[clinic end generated code: output=da39a3ee5e6b4b0d input=88c1db8cc4d96844]*/
 
 typedef struct {
     PyObject            *inobj;
@@ -536,7 +558,8 @@ errorexit:
 
 /*[clinic input]
 _multibytecodec.MultibyteCodec.encode
-
+  cls: defining_class
+  /
   input: object
   errors: str(accept={str, NoneType}) = None
 
@@ -550,9 +573,10 @@ registered with codecs.register_error that can handle UnicodeEncodeErrors.
 
 static PyObject *
 _multibytecodec_MultibyteCodec_encode_impl(MultibyteCodecObject *self,
+                                           PyTypeObject *cls,
                                            PyObject *input,
                                            const char *errors)
-/*[clinic end generated code: output=7b26652045ba56a9 input=606d0e128a577bae]*/
+/*[clinic end generated code: output=9cb1d3bbb2a420e2 input=373193fcff117355]*/
 {
     MultibyteCodec_State state;
     PyObject *errorcb, *r, *ucvt;
@@ -605,7 +629,8 @@ errorexit:
 
 /*[clinic input]
 _multibytecodec.MultibyteCodec.decode
-
+  cls: defining_class
+  /
   input: Py_buffer
   errors: str(accept={str, NoneType}) = None
 
@@ -619,9 +644,10 @@ codecs.register_error that is able to handle UnicodeDecodeErrors."
 
 static PyObject *
 _multibytecodec_MultibyteCodec_decode_impl(MultibyteCodecObject *self,
+                                           PyTypeObject *cls,
                                            Py_buffer *input,
                                            const char *errors)
-/*[clinic end generated code: output=ff419f65bad6cc77 input=e0c78fc7ab190def]*/
+/*[clinic end generated code: output=8d38694c885fc6d1 input=e3bbfbe781840023]*/
 {
     MultibyteCodec_State state;
     MultibyteDecodeBuffer buf;
@@ -691,41 +717,24 @@ static struct PyMethodDef multibytecodec_methods[] = {
 static void
 multibytecodec_dealloc(MultibyteCodecObject *self)
 {
-    PyObject_Free(self);
+    PyTypeObject *tp = Py_TYPE(self);
+    tp->tp_free(self);
+    Py_DECREF(tp);
 }
 
-static PyTypeObject MultibyteCodec_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    "MultibyteCodec",                   /* tp_name */
-    sizeof(MultibyteCodecObject),       /* tp_basicsize */
-    0,                                  /* tp_itemsize */
-    /* methods */
-    (destructor)multibytecodec_dealloc, /* tp_dealloc */
-    0,                                  /* tp_vectorcall_offset */
-    0,                                  /* tp_getattr */
-    0,                                  /* tp_setattr */
-    0,                                  /* tp_as_async */
-    0,                                  /* tp_repr */
-    0,                                  /* tp_as_number */
-    0,                                  /* tp_as_sequence */
-    0,                                  /* tp_as_mapping */
-    0,                                  /* tp_hash */
-    0,                                  /* tp_call */
-    0,                                  /* tp_str */
-    PyObject_GenericGetAttr,            /* tp_getattro */
-    0,                                  /* tp_setattro */
-    0,                                  /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                 /* tp_flags */
-    0,                                  /* tp_doc */
-    0,                                  /* tp_traverse */
-    0,                                  /* tp_clear */
-    0,                                  /* tp_richcompare */
-    0,                                  /* tp_weaklistoffset */
-    0,                                  /* tp_iter */
-    0,                                  /* tp_iterext */
-    multibytecodec_methods,             /* tp_methods */
+static PyType_Slot MultibyteCodec_Type_slots[] = {
+    {Py_tp_getattr, PyObject_GenericGetAttr},
+    {Py_tp_methods, multibytecodec_methods},
+    {Py_tp_dealloc, multibytecodec_dealloc},
+    {0, NULL}
 };
 
+PyType_Spec MultibyteCodec_Type_spec = {
+    .name = "MultibyteCodec",
+    .basicsize = sizeof(MultibyteCodecObject),
+    .flags = Py_TPFLAGS_DEFAULT,
+    .slots = MultibyteCodec_Type_slots,
+};
 
 /**
  * Utility functions for stateful codec mechanism
@@ -869,22 +878,24 @@ decoder_feed_buffer(MultibyteStatefulDecoderContext *ctx,
 
 
 /*[clinic input]
- class _multibytecodec.MultibyteIncrementalEncoder "MultibyteIncrementalEncoderObject *" "&MultibyteIncrementalEncoder_Type"
+ class _multibytecodec.MultibyteIncrementalEncoder "MultibyteIncrementalEncoderObject *" "multibytecodec_state_get_state_by_type(type)->MultibyteIncrementalEncoder_Type"
 [clinic start generated code]*/
-/*[clinic end generated code: output=da39a3ee5e6b4b0d input=3be82909cd08924d]*/
+/*[clinic end generated code: output=da39a3ee5e6b4b0d input=935796dddc69d4fe]*/
 
 /*[clinic input]
 _multibytecodec.MultibyteIncrementalEncoder.encode
-
+    cls: defining_class
+    /
     input: object
     final: bool(accept={int}) = False
 [clinic start generated code]*/
 
 static PyObject *
 _multibytecodec_MultibyteIncrementalEncoder_encode_impl(MultibyteIncrementalEncoderObject *self,
+                                                        PyTypeObject *cls,
                                                         PyObject *input,
                                                         int final)
-/*[clinic end generated code: output=123361b6c505e2c1 input=093a1ddbb2fc6721]*/
+/*[clinic end generated code: output=6693a2ebd28951ad input=914921164ec17708]*/
 {
     return encoder_encode_stateful(STATEFUL_ECTX(self), input, final);
 }
@@ -935,14 +946,16 @@ _multibytecodec_MultibyteIncrementalEncoder_getstate_impl(MultibyteIncrementalEn
 
 /*[clinic input]
 _multibytecodec.MultibyteIncrementalEncoder.setstate
+    cls: defining_class
     state as statelong: object(type='PyLongObject *', subclass_of='&PyLong_Type')
     /
 [clinic start generated code]*/
 
 static PyObject *
 _multibytecodec_MultibyteIncrementalEncoder_setstate_impl(MultibyteIncrementalEncoderObject *self,
+                                                          PyTypeObject *cls,
                                                           PyLongObject *statelong)
-/*[clinic end generated code: output=4e5e98ac1f4039ca input=c80fb5830d4d2f76]*/
+/*[clinic end generated code: output=d34414536fa724bd input=c7e7266e7d215eed]*/
 {
     PyObject *pending = NULL;
     unsigned char statebytes[1 + MAXENCPENDING*4 + sizeof(self->state.c)];
@@ -978,11 +991,14 @@ errorexit:
 
 /*[clinic input]
 _multibytecodec.MultibyteIncrementalEncoder.reset
+    cls: defining_class
+    /
 [clinic start generated code]*/
 
 static PyObject *
-_multibytecodec_MultibyteIncrementalEncoder_reset_impl(MultibyteIncrementalEncoderObject *self)
-/*[clinic end generated code: output=b4125d8f537a253f input=930f06760707b6ea]*/
+_multibytecodec_MultibyteIncrementalEncoder_reset_impl(MultibyteIncrementalEncoderObject *self,
+                                                       PyTypeObject *cls)
+/*[clinic end generated code: output=1a0aaff6a320641e input=19cd51b5254a1f59]*/
 {
     /* Longest output: 4 bytes (b'\x0F\x1F(B') with ISO 2022 */
     unsigned char buffer[4], *outbuf;
@@ -1024,7 +1040,9 @@ mbiencoder_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     codec = PyObject_GetAttrString((PyObject *)type, "codec");
     if (codec == NULL)
         goto errorexit;
-    if (!MultibyteCodec_Check(codec)) {
+
+    multibytecodec_state *state = PyType_GetModuleState(type);
+    if (!Py_IS_TYPE(codec, (PyTypeObject*)state->MultibyteCodec_Type)) {
         PyErr_SetString(PyExc_TypeError, "codec is unexpected type");
         goto errorexit;
     }
@@ -1068,70 +1086,50 @@ mbiencoder_dealloc(MultibyteIncrementalEncoderObject *self)
     PyObject_GC_UnTrack(self);
     ERROR_DECREF(self->errors);
     Py_CLEAR(self->pending);
-    Py_TYPE(self)->tp_free(self);
+    PyTypeObject *tp = Py_TYPE(self);
+    tp->tp_free(self);
+    Py_DECREF(tp);
 }
 
-static PyTypeObject MultibyteIncrementalEncoder_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    "MultibyteIncrementalEncoder",      /* tp_name */
-    sizeof(MultibyteIncrementalEncoderObject), /* tp_basicsize */
-    0,                                  /* tp_itemsize */
-    /*  methods  */
-    (destructor)mbiencoder_dealloc, /* tp_dealloc */
-    0,                                  /* tp_vectorcall_offset */
-    0,                                  /* tp_getattr */
-    0,                                  /* tp_setattr */
-    0,                                  /* tp_as_async */
-    0,                                  /* tp_repr */
-    0,                                  /* tp_as_number */
-    0,                                  /* tp_as_sequence */
-    0,                                  /* tp_as_mapping */
-    0,                                  /* tp_hash */
-    0,                                  /* tp_call */
-    0,                                  /* tp_str */
-    PyObject_GenericGetAttr,            /* tp_getattro */
-    0,                                  /* tp_setattro */
-    0,                                  /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC
-        | Py_TPFLAGS_BASETYPE,          /* tp_flags */
-    0,                                  /* tp_doc */
-    (traverseproc)mbiencoder_traverse,          /* tp_traverse */
-    0,                                  /* tp_clear */
-    0,                                  /* tp_richcompare */
-    0,                                  /* tp_weaklistoffset */
-    0,                                  /* tp_iter */
-    0,                                  /* tp_iterext */
-    mbiencoder_methods,                 /* tp_methods */
-    0,                                  /* tp_members */
-    codecctx_getsets,                   /* tp_getset */
-    0,                                  /* tp_base */
-    0,                                  /* tp_dict */
-    0,                                  /* tp_descr_get */
-    0,                                  /* tp_descr_set */
-    0,                                  /* tp_dictoffset */
-    mbiencoder_init,                    /* tp_init */
-    0,                                  /* tp_alloc */
-    mbiencoder_new,                     /* tp_new */
+static PyType_Slot MultibyteIncrementalEncoder_Type_slots[] = {
+    {Py_tp_init, mbiencoder_init},
+    {Py_tp_getset, codecctx_getsets},
+    {Py_tp_new, mbiencoder_new},
+    {Py_tp_getattr, PyObject_GenericGetAttr},
+    {Py_tp_methods, mbiencoder_methods},
+    {Py_tp_traverse, mbiencoder_traverse},
+    {Py_tp_dealloc, mbiencoder_dealloc},
+    {0, NULL}
+};
+
+static PyType_Spec MultibyteIncrementalEncoder_Type_spec = {
+    .name = "MultibyteIncrementalEncoder",
+    .basicsize = sizeof(MultibyteIncrementalEncoderObject),
+    .itemsize = 0,
+    .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
+    .slots = MultibyteIncrementalEncoder_Type_slots
 };
 
 
 /*[clinic input]
- class _multibytecodec.MultibyteIncrementalDecoder "MultibyteIncrementalDecoderObject *" "&MultibyteIncrementalDecoder_Type"
+ class _multibytecodec.MultibyteIncrementalDecoder "MultibyteIncrementalDecoderObject *" "multibytecodec_state_get_state_by_type(type)->MultibyteIncrementalDecoder_Type"
 [clinic start generated code]*/
-/*[clinic end generated code: output=da39a3ee5e6b4b0d input=f6003faaf2cea692]*/
+/*[clinic end generated code: output=da39a3ee5e6b4b0d input=3a58b4545c739a3c]*/
 
 /*[clinic input]
 _multibytecodec.MultibyteIncrementalDecoder.decode
-
+    cls: defining_class
+    /
     input: Py_buffer
     final: bool(accept={int}) = False
 [clinic start generated code]*/
 
 static PyObject *
 _multibytecodec_MultibyteIncrementalDecoder_decode_impl(MultibyteIncrementalDecoderObject *self,
+                                                        PyTypeObject *cls,
                                                         Py_buffer *input,
                                                         int final)
-/*[clinic end generated code: output=b9b9090e8a9ce2ba input=c9132b24d503eb1d]*/
+/*[clinic end generated code: output=a552388ea9e77ffb input=2d5d72ca332ed27e]*/
 {
     MultibyteDecodeBuffer buf;
     char *data, *wdata = NULL;
@@ -1205,11 +1203,14 @@ errorexit:
 
 /*[clinic input]
 _multibytecodec.MultibyteIncrementalDecoder.getstate
+   cls: defining_class
+   /
 [clinic start generated code]*/
 
 static PyObject *
-_multibytecodec_MultibyteIncrementalDecoder_getstate_impl(MultibyteIncrementalDecoderObject *self)
-/*[clinic end generated code: output=255009c4713b7f82 input=4006aa49bddbaa75]*/
+_multibytecodec_MultibyteIncrementalDecoder_getstate_impl(MultibyteIncrementalDecoderObject *self,
+                                                          PyTypeObject *cls)
+/*[clinic end generated code: output=805380dd1eeddc9d input=6a60a81d729875c2]*/
 {
     PyObject *buffer;
     PyObject *statelong;
@@ -1234,14 +1235,16 @@ _multibytecodec_MultibyteIncrementalDecoder_getstate_impl(MultibyteIncrementalDe
 
 /*[clinic input]
 _multibytecodec.MultibyteIncrementalDecoder.setstate
+    cls: defining_class
     state: object(subclass_of='&PyTuple_Type')
     /
 [clinic start generated code]*/
 
 static PyObject *
 _multibytecodec_MultibyteIncrementalDecoder_setstate_impl(MultibyteIncrementalDecoderObject *self,
+                                                          PyTypeObject *cls,
                                                           PyObject *state)
-/*[clinic end generated code: output=106b2fbca3e2dcc2 input=e5d794e8baba1a47]*/
+/*[clinic end generated code: output=b276e97436406d97 input=3cbf017dff76c147]*/
 {
     PyObject *buffer;
     PyLongObject *statelong;
@@ -1284,11 +1287,14 @@ _multibytecodec_MultibyteIncrementalDecoder_setstate_impl(MultibyteIncrementalDe
 
 /*[clinic input]
 _multibytecodec.MultibyteIncrementalDecoder.reset
+    cls: defining_class
+    /
 [clinic start generated code]*/
 
 static PyObject *
-_multibytecodec_MultibyteIncrementalDecoder_reset_impl(MultibyteIncrementalDecoderObject *self)
-/*[clinic end generated code: output=da423b1782c23ed1 input=3b63b3be85b2fb45]*/
+_multibytecodec_MultibyteIncrementalDecoder_reset_impl(MultibyteIncrementalDecoderObject *self,
+                                                       PyTypeObject *cls)
+/*[clinic end generated code: output=47239b078242652b input=f8bffeb090840288]*/
 {
     if (self->codec->decreset != NULL &&
         self->codec->decreset(&self->state, self->codec->config) != 0)
@@ -1324,7 +1330,9 @@ mbidecoder_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     codec = PyObject_GetAttrString((PyObject *)type, "codec");
     if (codec == NULL)
         goto errorexit;
-    if (!MultibyteCodec_Check(codec)) {
+
+    multibytecodec_state *state = PyType_GetModuleState(type);
+    if (!Py_IS_TYPE(codec, (PyTypeObject*)state->MultibyteCodec_Type)) {
         PyErr_SetString(PyExc_TypeError, "codec is unexpected type");
         goto errorexit;
     }
@@ -1367,57 +1375,34 @@ mbidecoder_dealloc(MultibyteIncrementalDecoderObject *self)
 {
     PyObject_GC_UnTrack(self);
     ERROR_DECREF(self->errors);
-    Py_TYPE(self)->tp_free(self);
+    PyTypeObject *tp = Py_TYPE(self);
+    tp->tp_free(self);
+    Py_DECREF(tp);
 }
 
-static PyTypeObject MultibyteIncrementalDecoder_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    "MultibyteIncrementalDecoder",      /* tp_name */
-    sizeof(MultibyteIncrementalDecoderObject), /* tp_basicsize */
-    0,                                  /* tp_itemsize */
-    /*  methods  */
-    (destructor)mbidecoder_dealloc, /* tp_dealloc */
-    0,                                  /* tp_vectorcall_offset */
-    0,                                  /* tp_getattr */
-    0,                                  /* tp_setattr */
-    0,                                  /* tp_as_async */
-    0,                                  /* tp_repr */
-    0,                                  /* tp_as_number */
-    0,                                  /* tp_as_sequence */
-    0,                                  /* tp_as_mapping */
-    0,                                  /* tp_hash */
-    0,                                  /* tp_call */
-    0,                                  /* tp_str */
-    PyObject_GenericGetAttr,            /* tp_getattro */
-    0,                                  /* tp_setattro */
-    0,                                  /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC
-        | Py_TPFLAGS_BASETYPE,          /* tp_flags */
-    0,                                  /* tp_doc */
-    (traverseproc)mbidecoder_traverse,          /* tp_traverse */
-    0,                                  /* tp_clear */
-    0,                                  /* tp_richcompare */
-    0,                                  /* tp_weaklistoffset */
-    0,                                  /* tp_iter */
-    0,                                  /* tp_iterext */
-    mbidecoder_methods,                 /* tp_methods */
-    0,                                  /* tp_members */
-    codecctx_getsets,                   /* tp_getset */
-    0,                                  /* tp_base */
-    0,                                  /* tp_dict */
-    0,                                  /* tp_descr_get */
-    0,                                  /* tp_descr_set */
-    0,                                  /* tp_dictoffset */
-    mbidecoder_init,                    /* tp_init */
-    0,                                  /* tp_alloc */
-    mbidecoder_new,                     /* tp_new */
+static PyType_Slot MultibyteIncrementalDecoder_slots[] = {
+    {Py_tp_init, mbidecoder_init},
+    {Py_tp_getset, codecctx_getsets},
+    {Py_tp_new, mbidecoder_new},
+    {Py_tp_getattr, PyObject_GenericGetAttr},
+    {Py_tp_methods, mbidecoder_methods},
+    {Py_tp_traverse, mbidecoder_traverse},
+    {Py_tp_dealloc, mbidecoder_dealloc},
+    {0, NULL}
 };
 
+static PyType_Spec MultibyteIncrementalDecoder_Type_spec = {
+    .name = "MultibyteIncrementalDecoder",
+    .basicsize = sizeof(MultibyteIncrementalDecoderObject),
+    .itemsize = 0,
+    .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
+    .slots = MultibyteIncrementalDecoder_slots
+};
 
 /*[clinic input]
- class _multibytecodec.MultibyteStreamReader "MultibyteStreamReaderObject *" "MultibyteStreamReader_Type"
+ class _multibytecodec.MultibyteStreamReader "MultibyteStreamReaderObject *" "multibytecodec_state_get_state_by_type(type)->MultibyteStreamReader_Type"
 [clinic start generated code]*/
-/*[clinic end generated code: output=da39a3ee5e6b4b0d input=d323634b74976f09]*/
+/*[clinic end generated code: output=da39a3ee5e6b4b0d input=760303b12956d124]*/
 
 static PyObject *
 mbstreamreader_iread(MultibyteStreamReaderObject *self,
@@ -1526,15 +1511,16 @@ errorexit:
 
 /*[clinic input]
  _multibytecodec.MultibyteStreamReader.read
-
+    cls: defining_class
     sizeobj: object = None
     /
 [clinic start generated code]*/
 
 static PyObject *
 _multibytecodec_MultibyteStreamReader_read_impl(MultibyteStreamReaderObject *self,
+                                                PyTypeObject *cls,
                                                 PyObject *sizeobj)
-/*[clinic end generated code: output=35621eb75355d5b8 input=015b0d3ff2fca485]*/
+/*[clinic end generated code: output=8a7ca418257021ac input=ce2248d5268aa613]*/
 {
     Py_ssize_t size;
 
@@ -1555,15 +1541,16 @@ _multibytecodec_MultibyteStreamReader_read_impl(MultibyteStreamReaderObject *sel
 
 /*[clinic input]
  _multibytecodec.MultibyteStreamReader.readline
-
+    cls: defining_class
     sizeobj: object = None
     /
 [clinic start generated code]*/
 
 static PyObject *
 _multibytecodec_MultibyteStreamReader_readline_impl(MultibyteStreamReaderObject *self,
+                                                    PyTypeObject *cls,
                                                     PyObject *sizeobj)
-/*[clinic end generated code: output=4fbfaae1ed457a11 input=41ccc64f9bb0cec3]*/
+/*[clinic end generated code: output=432e5621a8ab4492 input=9228f1aae3ad9771]*/
 {
     Py_ssize_t size;
 
@@ -1584,15 +1571,16 @@ _multibytecodec_MultibyteStreamReader_readline_impl(MultibyteStreamReaderObject 
 
 /*[clinic input]
  _multibytecodec.MultibyteStreamReader.readlines
-
+    cls: defining_class
     sizehintobj: object = None
     /
 [clinic start generated code]*/
 
 static PyObject *
 _multibytecodec_MultibyteStreamReader_readlines_impl(MultibyteStreamReaderObject *self,
+                                                     PyTypeObject *cls,
                                                      PyObject *sizehintobj)
-/*[clinic end generated code: output=e7c4310768ed2ad4 input=54932f5d4d88e880]*/
+/*[clinic end generated code: output=2847e9e17f01bae4 input=7107e994a64396e6]*/
 {
     PyObject *r, *sr;
     Py_ssize_t sizehint;
@@ -1620,11 +1608,14 @@ _multibytecodec_MultibyteStreamReader_readlines_impl(MultibyteStreamReaderObject
 
 /*[clinic input]
  _multibytecodec.MultibyteStreamReader.reset
+     cls: defining_class
+     /
 [clinic start generated code]*/
 
 static PyObject *
-_multibytecodec_MultibyteStreamReader_reset_impl(MultibyteStreamReaderObject *self)
-/*[clinic end generated code: output=138490370a680abc input=5d4140db84b5e1e2]*/
+_multibytecodec_MultibyteStreamReader_reset_impl(MultibyteStreamReaderObject *self,
+                                                 PyTypeObject *cls)
+/*[clinic end generated code: output=e5ef769fc434556a input=d5d4e4db37c4df14]*/
 {
     if (self->codec->decreset != NULL &&
         self->codec->decreset(&self->state, self->codec->config) != 0)
@@ -1667,7 +1658,9 @@ mbstreamreader_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     codec = PyObject_GetAttrString((PyObject *)type, "codec");
     if (codec == NULL)
         goto errorexit;
-    if (!MultibyteCodec_Check(codec)) {
+
+    multibytecodec_state *state = PyType_GetModuleState(type);
+    if (!Py_IS_TYPE(codec, (PyTypeObject*)state->MultibyteCodec_Type)) {
         PyErr_SetString(PyExc_TypeError, "codec is unexpected type");
         goto errorexit;
     }
@@ -1714,57 +1707,35 @@ mbstreamreader_dealloc(MultibyteStreamReaderObject *self)
     PyObject_GC_UnTrack(self);
     ERROR_DECREF(self->errors);
     Py_XDECREF(self->stream);
-    Py_TYPE(self)->tp_free(self);
+    PyTypeObject *tp = Py_TYPE(self);
+    tp->tp_free(self);
+    Py_DECREF(tp);
 }
 
-static PyTypeObject MultibyteStreamReader_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    "MultibyteStreamReader",            /* tp_name */
-    sizeof(MultibyteStreamReaderObject), /* tp_basicsize */
-    0,                                  /* tp_itemsize */
-    /*  methods  */
-    (destructor)mbstreamreader_dealloc, /* tp_dealloc */
-    0,                                  /* tp_vectorcall_offset */
-    0,                                  /* tp_getattr */
-    0,                                  /* tp_setattr */
-    0,                                  /* tp_as_async */
-    0,                                  /* tp_repr */
-    0,                                  /* tp_as_number */
-    0,                                  /* tp_as_sequence */
-    0,                                  /* tp_as_mapping */
-    0,                                  /* tp_hash */
-    0,                                  /* tp_call */
-    0,                                  /* tp_str */
-    PyObject_GenericGetAttr,            /* tp_getattro */
-    0,                                  /* tp_setattro */
-    0,                                  /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC
-        | Py_TPFLAGS_BASETYPE,          /* tp_flags */
-    0,                                  /* tp_doc */
-    (traverseproc)mbstreamreader_traverse,      /* tp_traverse */
-    0,                                  /* tp_clear */
-    0,                                  /* tp_richcompare */
-    0,                                  /* tp_weaklistoffset */
-    0,                                  /* tp_iter */
-    0,                                  /* tp_iterext */
-    mbstreamreader_methods,             /* tp_methods */
-    mbstreamreader_members,             /* tp_members */
-    codecctx_getsets,                   /* tp_getset */
-    0,                                  /* tp_base */
-    0,                                  /* tp_dict */
-    0,                                  /* tp_descr_get */
-    0,                                  /* tp_descr_set */
-    0,                                  /* tp_dictoffset */
-    mbstreamreader_init,                /* tp_init */
-    0,                                  /* tp_alloc */
-    mbstreamreader_new,                 /* tp_new */
+static PyType_Slot MultibyteStreamReader_Type_slots[] = {
+    {Py_tp_init, mbstreamreader_init},
+    {Py_tp_getset, codecctx_getsets},
+    {Py_tp_new, mbstreamreader_new},
+    {Py_tp_getattr, PyObject_GenericGetAttr},
+    {Py_tp_methods, mbstreamreader_methods},
+    {Py_tp_members, mbstreamreader_members},
+    {Py_tp_traverse, mbstreamreader_traverse},
+    {Py_tp_dealloc, mbstreamreader_dealloc},
+    {0, NULL}
 };
 
+static PyType_Spec MultibyteStreamReader_Type_spec = {
+    .name = "MultibyteStreamReader",
+    .basicsize = sizeof(MultibyteStreamReaderObject),
+    .itemsize = 0,
+    .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
+    .slots = MultibyteStreamReader_Type_slots
+};
 
 /*[clinic input]
- class _multibytecodec.MultibyteStreamWriter "MultibyteStreamWriterObject *" "&MultibyteStreamWriter_Type"
+ class _multibytecodec.MultibyteStreamWriter "MultibyteStreamWriterObject *" "multibytecodec_state_get_state_by_type(type)->MultibyteStreamWriter_Type"
 [clinic start generated code]*/
-/*[clinic end generated code: output=da39a3ee5e6b4b0d input=cde22780a215d6ac]*/
+/*[clinic end generated code: output=da39a3ee5e6b4b0d input=55748e5d8b1fbf3b]*/
 
 static int
 mbstreamwriter_iwrite(MultibyteStreamWriterObject *self,
@@ -1787,15 +1758,16 @@ mbstreamwriter_iwrite(MultibyteStreamWriterObject *self,
 
 /*[clinic input]
  _multibytecodec.MultibyteStreamWriter.write
-
+    cls: defining_class
     strobj: object
     /
 [clinic start generated code]*/
 
 static PyObject *
-_multibytecodec_MultibyteStreamWriter_write(MultibyteStreamWriterObject *self,
-                                            PyObject *strobj)
-/*[clinic end generated code: output=e13ae841c895251e input=551dc4c018c10a2b]*/
+_multibytecodec_MultibyteStreamWriter_write_impl(MultibyteStreamWriterObject *self,
+                                                 PyTypeObject *cls,
+                                                 PyObject *strobj)
+/*[clinic end generated code: output=68ade3aea26410ac input=d8a63a3755413d52]*/
 {
     if (mbstreamwriter_iwrite(self, strobj))
         return NULL;
@@ -1805,15 +1777,16 @@ _multibytecodec_MultibyteStreamWriter_write(MultibyteStreamWriterObject *self,
 
 /*[clinic input]
  _multibytecodec.MultibyteStreamWriter.writelines
-
+    cls: defining_class
     lines: object
     /
 [clinic start generated code]*/
 
 static PyObject *
-_multibytecodec_MultibyteStreamWriter_writelines(MultibyteStreamWriterObject *self,
-                                                 PyObject *lines)
-/*[clinic end generated code: output=e5c4285ac8e7d522 input=57797fe7008d4e96]*/
+_multibytecodec_MultibyteStreamWriter_writelines_impl(MultibyteStreamWriterObject *self,
+                                                      PyTypeObject *cls,
+                                                      PyObject *lines)
+/*[clinic end generated code: output=b4c99d2cf23ffb88 input=31027cf1a4e46c36]*/
 {
     PyObject *strobj;
     int i, r;
@@ -1844,11 +1817,14 @@ _multibytecodec_MultibyteStreamWriter_writelines(MultibyteStreamWriterObject *se
 
 /*[clinic input]
  _multibytecodec.MultibyteStreamWriter.reset
+     cls: defining_class
+     /
 [clinic start generated code]*/
 
 static PyObject *
-_multibytecodec_MultibyteStreamWriter_reset_impl(MultibyteStreamWriterObject *self)
-/*[clinic end generated code: output=8f54a4d9b03db5ff input=b56dbcbaf35cc10c]*/
+_multibytecodec_MultibyteStreamWriter_reset_impl(MultibyteStreamWriterObject *self,
+                                                 PyTypeObject *cls)
+/*[clinic end generated code: output=32ef224c2a38aa3d input=f4edc3c0af4a9995]*/
 {
     PyObject *pwrt;
 
@@ -1899,7 +1875,9 @@ mbstreamwriter_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     codec = PyObject_GetAttrString((PyObject *)type, "codec");
     if (codec == NULL)
         goto errorexit;
-    if (!MultibyteCodec_Check(codec)) {
+
+    multibytecodec_state *state = PyType_GetModuleState(type);
+    if (!Py_IS_TYPE(codec, (PyTypeObject*)state->MultibyteCodec_Type)) {
         PyErr_SetString(PyExc_TypeError, "codec is unexpected type");
         goto errorexit;
     }
@@ -1946,7 +1924,9 @@ mbstreamwriter_dealloc(MultibyteStreamWriterObject *self)
     PyObject_GC_UnTrack(self);
     ERROR_DECREF(self->errors);
     Py_XDECREF(self->stream);
-    Py_TYPE(self)->tp_free(self);
+    PyTypeObject *tp = Py_TYPE(self);
+    tp->tp_free(self);
+    Py_DECREF(tp);
 }
 
 static struct PyMethodDef mbstreamwriter_methods[] = {
@@ -1963,60 +1943,35 @@ static PyMemberDef mbstreamwriter_members[] = {
     {NULL,}
 };
 
-static PyTypeObject MultibyteStreamWriter_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    "MultibyteStreamWriter",            /* tp_name */
-    sizeof(MultibyteStreamWriterObject), /* tp_basicsize */
-    0,                                  /* tp_itemsize */
-    /*  methods  */
-    (destructor)mbstreamwriter_dealloc, /* tp_dealloc */
-    0,                                  /* tp_vectorcall_offset */
-    0,                                  /* tp_getattr */
-    0,                                  /* tp_setattr */
-    0,                                  /* tp_as_async */
-    0,                                  /* tp_repr */
-    0,                                  /* tp_as_number */
-    0,                                  /* tp_as_sequence */
-    0,                                  /* tp_as_mapping */
-    0,                                  /* tp_hash */
-    0,                                  /* tp_call */
-    0,                                  /* tp_str */
-    PyObject_GenericGetAttr,            /* tp_getattro */
-    0,                                  /* tp_setattro */
-    0,                                  /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC
-        | Py_TPFLAGS_BASETYPE,          /* tp_flags */
-    0,                                  /* tp_doc */
-    (traverseproc)mbstreamwriter_traverse,      /* tp_traverse */
-    0,                                  /* tp_clear */
-    0,                                  /* tp_richcompare */
-    0,                                  /* tp_weaklistoffset */
-    0,                                  /* tp_iter */
-    0,                                  /* tp_iterext */
-    mbstreamwriter_methods,             /* tp_methods */
-    mbstreamwriter_members,             /* tp_members */
-    codecctx_getsets,                   /* tp_getset */
-    0,                                  /* tp_base */
-    0,                                  /* tp_dict */
-    0,                                  /* tp_descr_get */
-    0,                                  /* tp_descr_set */
-    0,                                  /* tp_dictoffset */
-    mbstreamwriter_init,                /* tp_init */
-    0,                                  /* tp_alloc */
-    mbstreamwriter_new,                 /* tp_new */
+static PyType_Slot MultibyteStreamWriter_Type_slots[] = {
+    {Py_tp_init, mbstreamwriter_init},
+    {Py_tp_getset, codecctx_getsets},
+    {Py_tp_new, mbstreamwriter_new},
+    {Py_tp_getattr, PyObject_GenericGetAttr},
+    {Py_tp_methods, mbstreamwriter_methods},
+    {Py_tp_members, mbstreamwriter_members},
+    {Py_tp_traverse, mbstreamwriter_traverse},
+    {Py_tp_dealloc, mbstreamwriter_dealloc},
+    {0, NULL}
 };
 
+static PyType_Spec MultibyteStreamWriter_Type_spec = {
+    .name = "MultibyteStreamWriter",
+    .basicsize = sizeof(MultibyteStreamWriterObject),
+    .itemsize = 0,
+    .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
+    .slots = MultibyteStreamWriter_Type_slots
+};
 
 /*[clinic input]
 _multibytecodec.__create_codec
-
     arg: object
     /
 [clinic start generated code]*/
 
 static PyObject *
 _multibytecodec___create_codec(PyObject *module, PyObject *arg)
-/*[clinic end generated code: output=cfa3dce8260e809d input=6840b2a6b183fcfa]*/
+/*[clinic end generated code: output=cfa3dce8260e809d input=1c66af54e8332452]*/
 {
     MultibyteCodecObject *self;
     MultibyteCodec *codec;
@@ -2030,7 +1985,9 @@ _multibytecodec___create_codec(PyObject *module, PyObject *arg)
     if (codec->codecinit != NULL && codec->codecinit(codec->config) != 0)
         return NULL;
 
-    self = PyObject_New(MultibyteCodecObject, &MultibyteCodec_Type);
+    multibytecodec_state *state =  multibytecodec_state_get_state(module);
+    assert(state != NULL);
+    self = PyObject_New(MultibyteCodecObject, (PyTypeObject *)state->MultibyteCodec_Type);
     if (self == NULL)
         return NULL;
     self->codec = codec;
@@ -2038,51 +1995,108 @@ _multibytecodec___create_codec(PyObject *module, PyObject *arg)
     return (PyObject *)self;
 }
 
-static struct PyMethodDef __methods[] = {
+static struct PyMethodDef multibytecodec_module_methods[] = {
     _MULTIBYTECODEC___CREATE_CODEC_METHODDEF
     {NULL, NULL},
 };
 
+static int
+multibytecodec_exec(PyObject *module)
+{
+    multibytecodec_state *state = multibytecodec_state_get_state(module);
+
+    state->MultibyteCodec_Type = PyType_FromModuleAndSpec(module, &MultibyteCodec_Type_spec, NULL);
+    if (state->MultibyteCodec_Type == NULL) {
+        return -1;
+    }
+
+    state->MultibyteIncrementalEncoder_Type = PyType_FromModuleAndSpec(module, &MultibyteIncrementalEncoder_Type_spec, NULL);
+    if (state->MultibyteIncrementalEncoder_Type == NULL) {
+        return -1;
+    }
+
+    if (PyModule_AddType(module, (PyTypeObject *)state->MultibyteIncrementalEncoder_Type) < 0) {
+        return -1;
+    }
+
+    state->MultibyteIncrementalDecoder_Type = PyType_FromModuleAndSpec(module, &MultibyteIncrementalDecoder_Type_spec, NULL);
+    if (state->MultibyteIncrementalDecoder_Type == NULL) {
+        return -1;
+    }
+
+    if (PyModule_AddType(module, (PyTypeObject *)state->MultibyteIncrementalDecoder_Type) < 0) {
+        return -1;
+    }
+
+    state->MultibyteStreamReader_Type = PyType_FromModuleAndSpec(module, &MultibyteStreamReader_Type_spec, NULL);
+    if (state->MultibyteStreamReader_Type == NULL) {
+        return -1;
+    }
+
+    if (PyModule_AddType(module, (PyTypeObject *)state->MultibyteStreamReader_Type) < 0) {
+        return -1;
+    }
+
+    state->MultibyteStreamWriter_Type = PyType_FromModuleAndSpec(module, &MultibyteStreamWriter_Type_spec, NULL);
+    if (state->MultibyteStreamWriter_Type == NULL) {
+        return -1;
+    }
+
+    if (PyModule_AddType(module, (PyTypeObject *)state->MultibyteStreamWriter_Type) < 0) {
+        return -1;
+    }
+    
+    return 0;
+}
+
+static int
+multibytecodec_traverse(PyObject *module, visitproc visit, void *arg)
+{
+    multibytecodec_state *state = multibytecodec_state_get_state(module);
+    Py_VISIT(state->MultibyteCodec_Type);
+    Py_VISIT(state->MultibyteIncrementalEncoder_Type);
+    Py_VISIT(state->MultibyteIncrementalDecoder_Type);
+    Py_VISIT(state->MultibyteStreamReader_Type);
+    Py_VISIT(state->MultibyteStreamWriter_Type);
+    return 0;
+}
+
+static int
+multibytecodec_clear(PyObject *module)
+{
+    multibytecodec_state *state = multibytecodec_state_get_state(module);
+    Py_CLEAR(state->MultibyteCodec_Type);
+    Py_CLEAR(state->MultibyteIncrementalEncoder_Type);
+    Py_CLEAR(state->MultibyteIncrementalDecoder_Type);
+    Py_CLEAR(state->MultibyteStreamReader_Type);
+    Py_CLEAR(state->MultibyteStreamWriter_Type);
+    return 0;
+}
+
+static void
+multibytecodec_free(void *module)
+{
+    multibytecodec_clear((PyObject *)module);
+}
+
+static PyModuleDef_Slot multibytecodec_slots[] = {
+    {Py_mod_exec, multibytecodec_exec},
+    {0, NULL}
+};
 
 static struct PyModuleDef _multibytecodecmodule = {
     PyModuleDef_HEAD_INIT,
-    "_multibytecodec",
-    NULL,
-    -1,
-    __methods,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    .m_name = "_multibytecodec",
+    .m_size = sizeof(multibytecodec_state),
+    .m_methods = multibytecodec_module_methods,
+    .m_slots = multibytecodec_slots,
+    .m_traverse = multibytecodec_traverse,
+    .m_clear = multibytecodec_clear,
+    .m_free = multibytecodec_free,
 };
 
 PyMODINIT_FUNC
 PyInit__multibytecodec(void)
 {
-    PyObject *m;
-    PyTypeObject *typelist[] = {
-        &MultibyteIncrementalEncoder_Type,
-        &MultibyteIncrementalDecoder_Type,
-        &MultibyteStreamReader_Type,
-        &MultibyteStreamWriter_Type
-    };
-
-    if (PyType_Ready(&MultibyteCodec_Type) < 0)
-        return NULL;
-
-    m = PyModule_Create(&_multibytecodecmodule);
-    if (m == NULL)
-        return NULL;
-
-    for (size_t i = 0; i < Py_ARRAY_LENGTH(typelist); i++) {
-        if (PyModule_AddType(m, typelist[i]) < 0) {
-            return NULL;
-        }
-    }
-
-    if (PyErr_Occurred()) {
-        Py_DECREF(m);
-        m = NULL;
-    }
-    return m;
+    return PyModuleDef_Init(&_multibytecodecmodule);
 }
