@@ -24,7 +24,7 @@ jobs:
     outputs:
       run_tests: ${{ steps.check.outputs.run_tests }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Check for source changes
         id: check
         run: |
@@ -54,7 +54,7 @@ jobs:
     needs: check_source
     if: needs.check_source.outputs.run_tests == 'true'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions/setup-python@v2
       - name: Install Dependencies
         run: sudo ./.github/workflows/posix-deps-apt.sh
@@ -85,7 +85,7 @@ jobs:
     needs: check_source
     if: needs.check_source.outputs.run_tests == 'true'
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Build CPython
       run: .\PCbuild\build.bat -e -p Win32
     - name: Display build info
@@ -99,7 +99,7 @@ jobs:
     needs: check_source
     if: needs.check_source.outputs.run_tests == 'true'
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Register MSVC problem matcher
       run: echo "::add-matcher::.github/problem-matchers/msvc.json"
     - name: Build CPython
@@ -115,7 +115,7 @@ jobs:
     needs: check_source
     if: needs.check_source.outputs.run_tests == 'true'
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Configure CPython
       run: ./configure --with-pydebug --with-openssl=/usr/local/opt/openssl --prefix=/opt/python-dev
     - name: Build CPython
@@ -133,7 +133,7 @@ jobs:
     env:
       OPENSSL_VER: 1.1.1k
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Register gcc problem matcher
       run: echo "::add-matcher::.github/problem-matchers/gcc.json"
     - name: Install Dependencies
